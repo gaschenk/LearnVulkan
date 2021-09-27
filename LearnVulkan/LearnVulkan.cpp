@@ -3,15 +3,14 @@
 
 #include "LearnVulkan.h"
 
-#include <vector>
 #include "Game.h"
+#include <vector>
 
 int main()
 {
-	Game game;
-	game.init();
-	game.run();
-	game.shutdown();
-	return 0;
+    Game game;
+    game.init();
+    game.run();
+    game.shutdown();
+    return 0;
 }
-
