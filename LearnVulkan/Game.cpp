@@ -1,22 +1,126 @@
 #include "Game.h"
 
-void Game::printVkPhysicalDeviceInfo(const VkPhysicalDevice &device)
+VkPhysicalDeviceProperties Game::getDeviceProperties(const VkPhysicalDevice &device)
 {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(device, &properties);
+    return properties;
+}
+
+std::vector<VkSurfaceFormatKHR> Game::getSurfaceFormats(const VkPhysicalDevice &physical_device)
+{
+    uint32_t amountOfFormats;
+    auto result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &amountOfFormats, nullptr);
+    ASSERT_VULKAN(result);
+    std::vector<VkSurfaceFormatKHR> formats(amountOfFormats);
+    result = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &amountOfFormats, formats.data());
+    ASSERT_VULKAN(result);
+
+    std::cout << "Amount of Formats: " << amountOfFormats << std::endl;
+    for (auto format : formats)
+    {
+        std::cout << "\t->" << format.format << std::endl;
+        std::cout << "\t|->" << nameof::nameof_enum(format.colorSpace) << std::endl;
+    }
+
+    return formats;
+}
+
+int Game::getBestDeviceId(std::vector<VkPhysicalDevice> &devices)
+{
+    std::vector<int> bestDeviceIds = {};
+    for (unsigned int i = 0; i < devices.size(); i++)
+    {
+        auto physicalDevice = devices[i];
+        VkPhysicalDeviceProperties properties = getDeviceProperties(physicalDevice);
+        if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            bestDeviceIds.push_back(i);
+
+        // TODO: Check for Double/Triple buffering support and other stuff
+        // such as min & max image size.
+        getSurfaceCapabilities(physicalDevice);
+        getSurfaceFormats(physicalDevice);
+        getPresentModes(physicalDevice);
+
+#ifdef _DEBUG
+        printVkPhysicalDeviceInfo(physicalDevice, properties);
+#endif
+        getQueueFamilyProperties(physicalDevice);
+    }
+    if (bestDeviceIds.size() == 0)
+        return {0};
+
+    return bestDeviceIds[0];
+}
+
+std::vector<VkPresentModeKHR> Game::getPresentModes(const VkPhysicalDevice physicalDevice)
+{
+    uint32_t presentModesCount;
+    auto result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModesCount, nullptr);
+    ASSERT_VULKAN(result);
+    std::vector<VkPresentModeKHR> presentModes(presentModesCount);
+    result =
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModesCount, presentModes.data());
+    ASSERT_VULKAN(result);
+
+    std::cout << "Amount of presentation modes: " << presentModesCount << std::endl;
+    for (auto present_mode : presentModes)
+    {
+        std::cout << "\t->" << nameof::nameof_enum(present_mode) << std::endl;
+    }
+    return presentModes;
+}
+
+VkSurfaceCapabilitiesKHR Game::getSurfaceCapabilities(const VkPhysicalDevice physicalDevice)
+{
+    VkSurfaceCapabilitiesKHR surfaceCapabilities;
+    auto result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
+    ASSERT_VULKAN(result);
+#ifdef _DEBUG
+    printDeviceSurfaceCapabilities(surfaceCapabilities);
+#endif
+    return surfaceCapabilities;
+}
+
+void Game::printDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR &surfaceCapabilities)
+{
+    std::cout << "Surface Capabilities: " << std::endl;
+    std::cout << "\tminImageCount: " << surfaceCapabilities.minImageCount << std::endl;
+    std::cout << "\tmaxImageCount: " << surfaceCapabilities.maxImageCount << std::endl;
+    std::cout << "\tcurrentExtent: " << surfaceCapabilities.currentExtent.width << "/"
+              << surfaceCapabilities.currentExtent.height << std::endl;
+    std::cout << "\tminImageExtent: " << surfaceCapabilities.minImageExtent.width << "/"
+              << surfaceCapabilities.minImageExtent.height << std::endl;
+    std::cout << "\tmaxImageExtent: " << surfaceCapabilities.maxImageExtent.width << "/"
+              << surfaceCapabilities.maxImageExtent.height << std::endl;
+    std::cout << "\tmaxImageArrayLayers: " << surfaceCapabilities.maxImageArrayLayers << std::endl;
+    std::cout << "\tsupportedTransforms: " << surfaceCapabilities.supportedTransforms << std::endl;
+    std::cout << "\tcurrentTransform: " << surfaceCapabilities.currentTransform << std::endl;
+    std::cout << "\tsupportedCompositeAlpha: " << surfaceCapabilities.supportedCompositeAlpha << std::endl;
+    std::cout << "\tsupportedUsageFlags: " << surfaceCapabilities.supportedUsageFlags << std::endl;
+}
+
+std::vector<VkQueueFamilyProperties> Game::getQueueFamilyProperties(const VkPhysicalDevice &device)
+{
+    uint32_t amountOfQueueFamilies = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &amountOfQueueFamilies, nullptr);
+
+    std::vector<VkQueueFamilyProperties> familyProperties(amountOfQueueFamilies);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &amountOfQueueFamilies, familyProperties.data());
+#ifdef _DEBUG
+    printQueueFamilyInfo(familyProperties);
+#endif
+    return familyProperties;
+}
+
+void Game::printVkPhysicalDeviceInfo(const VkPhysicalDevice &device, VkPhysicalDeviceProperties properties)
+{
     std::cout << "Type				Value		" << std::endl;
     std::cout.width(75);
     std::cout.fill('-');
     std::cout << "" << std::endl;
-    std::cout << "Device Name:   			" << properties.deviceName << std::endl;
-    const auto apiVersion = properties.apiVersion;
-    const auto driverVersion = properties.driverVersion;
-    std::cout << "API version:   			" << VK_VERSION_MAJOR(apiVersion) << "." << VK_VERSION_MINOR(apiVersion)
-              << "." << VK_VERSION_PATCH(apiVersion) << std::endl;
-    std::cout << "Driver version:			" << driverVersion << std::endl;
-    std::cout << "Vendor ID:    			" << properties.vendorID << std::endl;
-    std::cout << "Device ID:    			" << properties.deviceID << std::endl;
-    std::cout << "Device type:   			" << properties.deviceType << std::endl;
+
+    printPropertyInfo(properties);
 
     VkPhysicalDeviceFeatures features;
     vkGetPhysicalDeviceFeatures(device, &features);
@@ -30,44 +134,45 @@ void Game::printVkPhysicalDeviceInfo(const VkPhysicalDevice &device)
         const unsigned long long heapSizeInMB = heap.size / 1024 / 1024;
         std::cout << "Memory[" << i << "]:  			" << heapSizeInMB << "MB" << std::endl;
     }
+}
 
-    uint32_t amountOfQueueFamilies = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &amountOfQueueFamilies, nullptr);
-
-    std::vector<VkQueueFamilyProperties> familyProperties(amountOfQueueFamilies);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &amountOfQueueFamilies, familyProperties.data());
-
+void Game::printQueueFamilyInfo(const std::vector<VkQueueFamilyProperties> properties)
+{
+    uint32_t amountOfQueueFamilies = properties.size();
     std::cout << "Amount of queue families: 	" << amountOfQueueFamilies << std::endl;
 
     for (uint32_t i = 0; i < amountOfQueueFamilies; ++i)
     {
         std::cout << std::endl;
         std::cout << "Queue family #" << i << std::endl;
-        std::cout << "VK_QUEUE_GRAPHICS_BIT     	" << ((familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+        std::cout << "VK_QUEUE_GRAPHICS_BIT     	" << ((properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
                   << std::endl;
-        std::cout << "VK_QUEUE_COMPUTE_BIT      	" << ((familyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0)
+        std::cout << "VK_QUEUE_COMPUTE_BIT      	" << ((properties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) != 0)
                   << std::endl;
-        std::cout << "VK_QUEUE_TRANSFER_BIT     	" << ((familyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) != 0)
+        std::cout << "VK_QUEUE_TRANSFER_BIT     	" << ((properties[i].queueFlags & VK_QUEUE_TRANSFER_BIT) != 0)
                   << std::endl;
-        std::cout << "VK_QUEUE_SPARSE_BINDING_BIT	"
-                  << ((familyProperties[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) != 0) << std::endl;
-        std::cout << "Queue count:              	" << familyProperties[i].queueCount << std::endl;
-        std::cout << "Timestamp valid bits:        	" << familyProperties[i].timestampValidBits << std::endl;
-        const uint32_t width = familyProperties[i].minImageTransferGranularity.width;
-        const uint32_t height = familyProperties[i].minImageTransferGranularity.height;
-        const uint32_t depth = familyProperties[i].minImageTransferGranularity.depth;
+        std::cout << "VK_QUEUE_SPARSE_BINDING_BIT	" << ((properties[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) != 0)
+                  << std::endl;
+        std::cout << "Queue count:              	" << properties[i].queueCount << std::endl;
+        std::cout << "Timestamp valid bits:        	" << properties[i].timestampValidBits << std::endl;
+        const uint32_t width = properties[i].minImageTransferGranularity.width;
+        const uint32_t height = properties[i].minImageTransferGranularity.height;
+        const uint32_t depth = properties[i].minImageTransferGranularity.depth;
         std::cout << "minImageTransferGranularity: 	" << width << "," << height << "," << depth << std::endl;
     }
-
-    std::cout << std::endl;
 }
 
-void Game::initializeGLFW()
+void Game::printPropertyInfo(VkPhysicalDeviceProperties &properties)
 {
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, false);
-    window = glfwCreateWindow(400, 500, "Learn Vulkan", nullptr, nullptr);
+    std::cout << "Device Name:   			" << properties.deviceName << std::endl;
+    const auto apiVersion = properties.apiVersion;
+    const auto driverVersion = properties.driverVersion;
+    std::cout << "API version:   			" << VK_VERSION_MAJOR(apiVersion) << "." << VK_VERSION_MINOR(apiVersion)
+              << "." << VK_VERSION_PATCH(apiVersion) << std::endl;
+    std::cout << "Driver version:			" << driverVersion << std::endl;
+    std::cout << "Vendor ID:    			" << properties.vendorID << std::endl;
+    std::cout << "Device ID:    			" << properties.deviceID << std::endl;
+    std::cout << "Device type:   			" << properties.deviceType << std::endl;
 }
 
 void Game::initializeVulkan()
@@ -86,7 +191,7 @@ void Game::initializeVulkan()
     ASSERT_VULKAN(result);
 
     std::vector<VkLayerProperties> layers(amountOfLayers);
-    vkEnumerateInstanceLayerProperties(&amountOfLayers, layers.data());
+    result = vkEnumerateInstanceLayerProperties(&amountOfLayers, layers.data());
     ASSERT_VULKAN(result);
 
     std::cout << "Amount of instance layers:	" << amountOfLayers << std::endl;
@@ -106,13 +211,16 @@ void Game::initializeVulkan()
     std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
     uint32_t amountOfGlfwExtensions;
-    auto glfwExtensions = glfwGetRequiredInstanceExtensions(&amountOfGlfwExtensions);
+    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&amountOfGlfwExtensions);
+    std::vector<const char *> enabledExtensions(glfwExtensions, glfwExtensions + amountOfGlfwExtensions);
 
     uint32_t amountOfExtensions = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &amountOfExtensions, nullptr);
+    result = vkEnumerateInstanceExtensionProperties(nullptr, &amountOfExtensions, nullptr);
+    ASSERT_VULKAN(result);
 
     std::vector<VkExtensionProperties> extensions(amountOfExtensions);
-    vkEnumerateInstanceExtensionProperties(nullptr, &amountOfExtensions, extensions.data());
+    result = vkEnumerateInstanceExtensionProperties(nullptr, &amountOfExtensions, extensions.data());
+    ASSERT_VULKAN(result);
 
     std::cout << std::endl << std::endl << "Extensions" << std::endl;
     for (uint32_t i = 0; i < amountOfExtensions; ++i)
@@ -132,8 +240,8 @@ void Game::initializeVulkan()
     instanceInfo.pApplicationInfo = &appInfo;
     instanceInfo.enabledLayerCount = validationLayers.size();
     instanceInfo.ppEnabledLayerNames = validationLayers.data();
-    instanceInfo.enabledExtensionCount = amountOfGlfwExtensions;
-    instanceInfo.ppEnabledExtensionNames = glfwExtensions;
+    instanceInfo.enabledExtensionCount = enabledExtensions.size();
+    instanceInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
     result = vkCreateInstance(&instanceInfo, nullptr, &instance);
     ASSERT_VULKAN(result);
@@ -151,12 +259,9 @@ void Game::initializeVulkan()
     result = vkEnumeratePhysicalDevices(instance, &amountOfPhysicalDevices, physicalDevices.data());
     ASSERT_VULKAN(result);
 
-    for (unsigned int i = 0; i < amountOfPhysicalDevices; i++)
-    {
-        auto physicalDevice = physicalDevices[i];
-        printVkPhysicalDeviceInfo(physicalDevice);
-    }
+    int bestDeviceId = getBestDeviceId(physicalDevices);
 
+    // TODO: Select proper queueCount and queueFamilIndex and dynamically generate queuePriorities
     float queuePriorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                                1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
@@ -165,8 +270,10 @@ void Game::initializeVulkan()
     deviceQueueCreateInfo.pNext = nullptr;
     deviceQueueCreateInfo.flags = 0;
     deviceQueueCreateInfo.queueFamilyIndex = 0;
-    deviceQueueCreateInfo.queueCount = 16;
+    deviceQueueCreateInfo.queueCount = getQueueFamilyProperties(physicalDevices[bestDeviceId])[0].queueCount;
     deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
+
+    const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     VkDeviceCreateInfo deviceCreateInfo;
     VkPhysicalDeviceFeatures usedFeatures = {};
@@ -178,36 +285,101 @@ void Game::initializeVulkan()
     deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
     deviceCreateInfo.enabledLayerCount = 0;
     deviceCreateInfo.ppEnabledLayerNames = nullptr;
-    deviceCreateInfo.enabledExtensionCount = 0;
-    deviceCreateInfo.ppEnabledExtensionNames = nullptr;
+    deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
     deviceCreateInfo.pEnabledFeatures = &usedFeatures;
 
-    result = vkCreateDevice(physicalDevices[1], &deviceCreateInfo, nullptr, &device);
+    // TODO: Select proper physical device.
+    result = vkCreateDevice(physicalDevices[bestDeviceId], &deviceCreateInfo, nullptr, &device);
     ASSERT_VULKAN(result);
+    std::cout << "Best Device Id:   " << bestDeviceId << std::endl;
 
     VkQueue queue;
     vkGetDeviceQueue(device, 0, 0, &queue);
-}
 
-void Game::run()
-{
-    while (!glfwWindowShouldClose(window))
+    auto surfaceCapabilities = getSurfaceCapabilities(physicalDevices[bestDeviceId]);
+    auto surfaceFormats = getSurfaceFormats(physicalDevices[bestDeviceId]);
+    auto presentModes = getPresentModes(physicalDevices[bestDeviceId]);
+
+    VkBool32 surfaceSupport = false;
+    result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevices[bestDeviceId], 0, surface, &surfaceSupport);
+    ASSERT_VULKAN(result);
+
+    if (!surfaceSupport)
+        __debugbreak();
+
+    auto selectedPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+    if (std::count(presentModes.begin(), presentModes.end(), VK_PRESENT_MODE_MAILBOX_KHR))
     {
-        glfwPollEvents();
+        selectedPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+    }
+    VkSwapchainCreateInfoKHR swapchainCreateInfo;
+    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainCreateInfo.pNext = nullptr;
+    swapchainCreateInfo.flags = 0;
+    swapchainCreateInfo.surface = surface;
+    swapchainCreateInfo.minImageCount = surfaceCapabilities.minImageCount;
+    swapchainCreateInfo.imageFormat = surfaceFormats.data()[0].format;
+    swapchainCreateInfo.imageColorSpace = surfaceFormats.data()[0].colorSpace;
+    swapchainCreateInfo.imageExtent = surfaceCapabilities.currentExtent;
+    swapchainCreateInfo.imageArrayLayers = 1;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapchainCreateInfo.queueFamilyIndexCount = 0;
+    swapchainCreateInfo.pQueueFamilyIndices = nullptr;
+    swapchainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchainCreateInfo.presentMode = selectedPresentMode;
+    swapchainCreateInfo.clipped = VK_TRUE;
+    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    result = vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain);
+    ASSERT_VULKAN(result);
+
+    uint32_t amountOfImagesInSwapchain = 0;
+    result = vkGetSwapchainImagesKHR(device, swapchain, &amountOfImagesInSwapchain, nullptr);
+    ASSERT_VULKAN(result);
+    std::vector<VkImage> imagesInSwapchain(amountOfImagesInSwapchain);
+    result = vkGetSwapchainImagesKHR(device, swapchain, &amountOfImagesInSwapchain, imagesInSwapchain.data());
+    ASSERT_VULKAN(result);
+
+    imageViews.resize(amountOfImagesInSwapchain);
+    // imageViews = std::vector<VkImageView>(amountOfImagesInSwapchain);
+    for (size_t i = 0; i < amountOfImagesInSwapchain; i++)
+    {
+        VkImageViewCreateInfo imageViewCreateInfo;
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.pNext = nullptr;
+        imageViewCreateInfo.flags = 0;
+        imageViewCreateInfo.image = imagesInSwapchain[0];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = surfaceFormats.data()[0].format;
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+        result = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageViews[i]);
+        ASSERT_VULKAN(result);
     }
 }
 
 void Game::shutdownVulkan() const
 {
     vkDeviceWaitIdle(device);
+    for (auto image_view : imageViews)
+    {
+        vkDestroyImageView(device, image_view, nullptr);
+    }
+    vkDestroySwapchainKHR(device, swapchain, nullptr);
     vkDestroyDevice(device, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
-}
-
-void Game::shutdownGLFW() const
-{
-    glfwDestroyWindow(window);
 }
 
 void Game::init()
@@ -216,8 +388,29 @@ void Game::init()
     initializeVulkan();
 }
 
+void Game::initializeGLFW()
+{
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, false);
+    window = glfwCreateWindow(500, 440, "Learn Vulkan", nullptr, nullptr);
+}
+
+void Game::shutdownGLFW() const
+{
+    glfwDestroyWindow(window);
+}
+
 void Game::shutdown() const
 {
     shutdownVulkan();
     shutdownGLFW();
+}
+
+void Game::run()
+{
+    while (!glfwWindowShouldClose(window))
+    {
+        glfwPollEvents();
+    }
 }
