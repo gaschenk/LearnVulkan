@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <fstream>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
@@ -24,6 +25,7 @@ class Game
 {
     void initializeGLFW();
     void initializeVulkan();
+    void CreateShaderModule(std::vector<char> &code, VkShaderModule *shaderModule);
     void shutdownVulkan() const;
     void shutdownGLFW() const;
     VkPhysicalDeviceProperties getDeviceProperties(const VkPhysicalDevice &device);
@@ -49,6 +51,8 @@ class Game
     void shutdown() const;
 
   private:
+    VkShaderModule shaderModuleVert;
+    VkShaderModule shaderModuleFrag;
     std::vector<VkImageView> imageViews;
     VkSwapchainKHR swapchain;
     VkInstance instance;

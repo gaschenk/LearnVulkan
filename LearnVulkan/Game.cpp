@@ -1,5 +1,20 @@
 #include "Game.h"
 
+std::vector<char> readFile(const std::string &fileName)
+{
+    std::ifstream inputFileStream(fileName, std::ios::binary | std::ios::ate);
+
+    if (inputFileStream)
+    {
+        size_t fileSize = static_cast<size_t>(inputFileStream.tellg());
+        std::vector<char> fileBuffer(fileSize);
+        inputFileStream.seekg(0);
+        inputFileStream.read(fileBuffer.data(), fileSize);
+        inputFileStream.close();
+        return fileBuffer;
+    }
+    throw std::runtime_error("Failed to open file");
+}
 VkPhysicalDeviceProperties Game::getDeviceProperties(const VkPhysicalDevice &device)
 {
     VkPhysicalDeviceProperties properties;
@@ -97,6 +112,10 @@ void Game::printDeviceSurfaceCapabilities(VkSurfaceCapabilitiesKHR &surfaceCapab
     std::cout << "\tsupportedTransforms: " << surfaceCapabilities.supportedTransforms << std::endl;
     std::cout << "\tcurrentTransform: " << surfaceCapabilities.currentTransform << std::endl;
     std::cout << "\tsupportedCompositeAlpha: " << surfaceCapabilities.supportedCompositeAlpha << std::endl;
+    /*
+    VkImageUsageFlagBits flags = static_cast<VkImageUsageFlagBits>(surfaceCapabilities.supportedUsageFlags);
+    std::cout << "\tsupportedUsageFlags: " << nameof::nameof_enum_flag(flags) << std::endl;
+     */
     std::cout << "\tsupportedUsageFlags: " << surfaceCapabilities.supportedUsageFlags << std::endl;
 }
 
@@ -138,10 +157,10 @@ void Game::printVkPhysicalDeviceInfo(const VkPhysicalDevice &device, VkPhysicalD
 
 void Game::printQueueFamilyInfo(const std::vector<VkQueueFamilyProperties> properties)
 {
-    uint32_t amountOfQueueFamilies = properties.size();
+    size_t amountOfQueueFamilies = properties.size();
     std::cout << "Amount of queue families: 	" << amountOfQueueFamilies << std::endl;
 
-    for (uint32_t i = 0; i < amountOfQueueFamilies; ++i)
+    for (size_t i = 0; i < amountOfQueueFamilies; ++i)
     {
         std::cout << std::endl;
         std::cout << "Queue family #" << i << std::endl;
@@ -262,16 +281,16 @@ void Game::initializeVulkan()
     int bestDeviceId = getBestDeviceId(physicalDevices);
 
     // TODO: Select proper queueCount and queueFamilIndex and dynamically generate queuePriorities
-    float queuePriorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-                               1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-
+    // float queuePriorities[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    //                          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     VkDeviceQueueCreateInfo deviceQueueCreateInfo;
     deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceQueueCreateInfo.pNext = nullptr;
     deviceQueueCreateInfo.flags = 0;
     deviceQueueCreateInfo.queueFamilyIndex = 0;
     deviceQueueCreateInfo.queueCount = getQueueFamilyProperties(physicalDevices[bestDeviceId])[0].queueCount;
-    deviceQueueCreateInfo.pQueuePriorities = queuePriorities;
+    std::vector<float> queuePriorities(deviceQueueCreateInfo.queueCount, 1.0f);
+    deviceQueueCreateInfo.pQueuePriorities = queuePriorities.data();
 
     const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
@@ -367,11 +386,109 @@ void Game::initializeVulkan()
         result = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageViews[i]);
         ASSERT_VULKAN(result);
     }
+
+    auto shaderCodeVert = readFile("content/vert.spv");
+    auto shaderCodeFrag = readFile("content/frag.spv");
+#ifdef _DEBUG
+    std::cout << "File sizes: " << std::endl;
+    std::cout << "\tvert.spv " << shaderCodeVert.size() << "bytes" << std::endl;
+    std::cout << "\tfrag.spv " << shaderCodeFrag.size() << "bytes" << std::endl;
+#endif
+
+    CreateShaderModule(shaderCodeVert, &shaderModuleVert);
+    CreateShaderModule(shaderCodeFrag, &shaderModuleFrag);
+
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfoVert;
+    shaderStageCreateInfoVert.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageCreateInfoVert.pNext = nullptr;
+    shaderStageCreateInfoVert.flags = 0;
+    shaderStageCreateInfoVert.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderStageCreateInfoVert.module = shaderModuleVert;
+    shaderStageCreateInfoVert.pName = "main";
+    shaderStageCreateInfoVert.pSpecializationInfo = nullptr;
+
+    VkPipelineShaderStageCreateInfo shaderStageCreateInfoFrag;
+    shaderStageCreateInfoFrag.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStageCreateInfoFrag.pNext = nullptr;
+    shaderStageCreateInfoFrag.flags = 0;
+    shaderStageCreateInfoFrag.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shaderStageCreateInfoFrag.module = shaderModuleFrag;
+    shaderStageCreateInfoFrag.pName = "main";
+    shaderStageCreateInfoFrag.pSpecializationInfo = nullptr;
+
+    std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderCreateInfos{shaderStageCreateInfoFrag,
+                                                                           shaderStageCreateInfoVert};
+
+    VkPipelineVertexInputStateCreateInfo pipelineVertexInputCreateInfo;
+    pipelineVertexInputCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    pipelineVertexInputCreateInfo.pNext = nullptr;
+    pipelineVertexInputCreateInfo.flags = 0;
+    pipelineVertexInputCreateInfo.vertexBindingDescriptionCount = 0;
+    pipelineVertexInputCreateInfo.pVertexBindingDescriptions = nullptr;
+    pipelineVertexInputCreateInfo.vertexAttributeDescriptionCount = 0;
+    pipelineVertexInputCreateInfo.pVertexAttributeDescriptions = nullptr;
+
+    VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo;
+    pipelineInputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    pipelineInputAssemblyStateCreateInfo.pNext = nullptr;
+    pipelineInputAssemblyStateCreateInfo.flags = 0;
+    pipelineInputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInputAssemblyStateCreateInfo.primitiveRestartEnable = false;
+
+    VkViewport viewPort;
+    viewPort.x = 0;
+    viewPort.y = 0;
+    viewPort.width = surfaceCapabilities.currentExtent.width;
+    viewPort.height = surfaceCapabilities.currentExtent.height;
+    viewPort.minDepth = 0.0f;
+    viewPort.maxDepth = 1.0f;
+
+    VkRect2D scissorRect;
+    scissorRect.offset = {0, 0};
+    scissorRect.extent = {surfaceCapabilities.currentExtent.width, surfaceCapabilities.currentExtent.height};
+
+    VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo;
+    pipelineViewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    pipelineViewportStateCreateInfo.pNext = nullptr;
+    pipelineViewportStateCreateInfo.flags = 0;
+    pipelineViewportStateCreateInfo.viewportCount = 1;
+    pipelineViewportStateCreateInfo.pViewports = &viewPort;
+    pipelineViewportStateCreateInfo.scissorCount = 1;
+    pipelineViewportStateCreateInfo.pScissors = &scissorRect;
+
+    VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo;
+    pipelineRasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    pipelineRasterizationStateCreateInfo.pNext = nullptr;
+    pipelineRasterizationStateCreateInfo.flags = 0;
+    pipelineRasterizationStateCreateInfo.depthClampEnable = false;
+    pipelineRasterizationStateCreateInfo.rasterizerDiscardEnable = false;
+    pipelineRasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+    pipelineRasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineRasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    pipelineRasterizationStateCreateInfo.depthBiasEnable = false;
+    pipelineRasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+    pipelineRasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+    pipelineRasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+    pipelineRasterizationStateCreateInfo.lineWidth = 1.0f;
+}
+
+void Game::CreateShaderModule(std::vector<char> &code, VkShaderModule *shaderModule)
+{
+    VkShaderModuleCreateInfo shaderModuleCreateInfo;
+    shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    shaderModuleCreateInfo.pNext = nullptr;
+    shaderModuleCreateInfo.flags = 0;
+    shaderModuleCreateInfo.codeSize = code.size();
+    shaderModuleCreateInfo.pCode = reinterpret_cast<uint32_t *>(code.data());
+    auto result = vkCreateShaderModule(device, &shaderModuleCreateInfo, nullptr, shaderModule);
+    ASSERT_VULKAN(result);
 }
 
 void Game::shutdownVulkan() const
 {
     vkDeviceWaitIdle(device);
+    vkDestroyShaderModule(device, shaderModuleFrag, nullptr);
+    vkDestroyShaderModule(device, shaderModuleVert, nullptr);
     for (auto image_view : imageViews)
     {
         vkDestroyImageView(device, image_view, nullptr);

@@ -13,5 +13,8 @@ find_package(nameof CONFIG REQUIRED)
 add_executable (LearnVulkan "LearnVulkan.cpp" "Game.cpp")
 
 target_link_libraries(LearnVulkan PRIVATE glfw glm::glm Vulkan::Vulkan fmt::fmt nameof::nameof)
-
+add_custom_command(
+    TARGET LearnVulkan
+    PRE_BUILD COMMAND ${CMAKE_COMMAND} -E
+    create_symlink ${CMAKE_CURRENT_SOURCE_DIR}/content $<TARGET_FILE_DIR:LearnVulkan>/content)
 # TODO: Add tests and install targets if needed.
