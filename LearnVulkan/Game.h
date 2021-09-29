@@ -1,12 +1,12 @@
 #pragma once
 
+#include <fstream>
 #include <iostream>
 #include <nameof.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <fstream>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
@@ -51,12 +51,16 @@ class Game
     void shutdown() const;
 
   private:
+    VkPipelineLayout pipelineLayout;
     VkShaderModule shaderModuleVert;
     VkShaderModule shaderModuleFrag;
     std::vector<VkImageView> imageViews;
+    std::vector<VkFramebuffer> frameBuffers;
     VkSwapchainKHR swapchain;
     VkInstance instance;
     VkDevice device;
     GLFWwindow *window;
     VkSurfaceKHR surface;
+    VkRenderPass renderPass;
+    VkPipeline pipeline;
 };

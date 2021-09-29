@@ -470,6 +470,133 @@ void Game::initializeVulkan()
     pipelineRasterizationStateCreateInfo.depthBiasClamp = 0.0f;
     pipelineRasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
     pipelineRasterizationStateCreateInfo.lineWidth = 1.0f;
+
+    VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
+    pipelineMultisampleStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    pipelineMultisampleStateCreateInfo.pNext = nullptr;
+    pipelineMultisampleStateCreateInfo.flags = 0;
+    pipelineMultisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    pipelineMultisampleStateCreateInfo.sampleShadingEnable = false;
+    pipelineMultisampleStateCreateInfo.minSampleShading = 1.0f;
+    pipelineMultisampleStateCreateInfo.pSampleMask = nullptr;
+    pipelineMultisampleStateCreateInfo.alphaToCoverageEnable = false;
+    pipelineMultisampleStateCreateInfo.alphaToOneEnable = false;
+
+    VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState;
+    pipelineColorBlendAttachmentState.blendEnable = true;
+    pipelineColorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    pipelineColorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    pipelineColorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+    pipelineColorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    pipelineColorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    pipelineColorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
+    pipelineColorBlendAttachmentState.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo;
+    pipelineColorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    pipelineColorBlendStateCreateInfo.pNext = nullptr;
+    pipelineColorBlendStateCreateInfo.flags = 0;
+    pipelineColorBlendStateCreateInfo.logicOpEnable = false;
+    pipelineColorBlendStateCreateInfo.logicOp = VK_LOGIC_OP_NO_OP;
+    pipelineColorBlendStateCreateInfo.attachmentCount = 1;
+    pipelineColorBlendStateCreateInfo.pAttachments = &pipelineColorBlendAttachmentState;
+    pipelineColorBlendStateCreateInfo.blendConstants[0] = 0.0f;
+    pipelineColorBlendStateCreateInfo.blendConstants[1] = 0.0f;
+    pipelineColorBlendStateCreateInfo.blendConstants[2] = 0.0f;
+    pipelineColorBlendStateCreateInfo.blendConstants[3] = 0.0f;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.pNext = nullptr;
+    pipelineLayoutCreateInfo.flags = 0;
+    pipelineLayoutCreateInfo.setLayoutCount = 0;
+    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+
+    result = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    ASSERT_VULKAN(result);
+
+    VkAttachmentDescription attachmentDescription;
+    attachmentDescription.flags = 0;
+    attachmentDescription.format = swapchainCreateInfo.imageFormat;
+    attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference attachmentReference;
+    attachmentReference.attachment = 0;
+    attachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpassDescription;
+    subpassDescription.flags = 0;
+    subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpassDescription.inputAttachmentCount = 0;
+    subpassDescription.pInputAttachments = nullptr;
+    subpassDescription.colorAttachmentCount = 1;
+    subpassDescription.pColorAttachments = &attachmentReference;
+    subpassDescription.pResolveAttachments = nullptr;
+    subpassDescription.pDepthStencilAttachment = nullptr;
+    subpassDescription.preserveAttachmentCount = 0;
+    subpassDescription.pPreserveAttachments = nullptr;
+
+    VkRenderPassCreateInfo renderPassCreateInfo;
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.pNext = nullptr;
+    renderPassCreateInfo.flags = 0;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &attachmentDescription;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpassDescription;
+    renderPassCreateInfo.dependencyCount = 0;
+    renderPassCreateInfo.pDependencies = nullptr;
+    result = vkCreateRenderPass(device, &renderPassCreateInfo, nullptr, &renderPass);
+    ASSERT_VULKAN(result);
+
+    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo;
+    graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    graphicsPipelineCreateInfo.pNext = nullptr;
+    graphicsPipelineCreateInfo.flags = 0;
+    graphicsPipelineCreateInfo.stageCount = 2;
+    graphicsPipelineCreateInfo.pStages = pipelineShaderCreateInfos.data();
+    graphicsPipelineCreateInfo.pVertexInputState = &pipelineVertexInputCreateInfo;
+    graphicsPipelineCreateInfo.pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo;
+    graphicsPipelineCreateInfo.pTessellationState = nullptr;
+    graphicsPipelineCreateInfo.pViewportState = &pipelineViewportStateCreateInfo;
+    graphicsPipelineCreateInfo.pRasterizationState = &pipelineRasterizationStateCreateInfo;
+    graphicsPipelineCreateInfo.pMultisampleState = &pipelineMultisampleStateCreateInfo;
+    graphicsPipelineCreateInfo.pDepthStencilState = nullptr;
+    graphicsPipelineCreateInfo.pColorBlendState = &pipelineColorBlendStateCreateInfo;
+    graphicsPipelineCreateInfo.pDynamicState = nullptr;
+    graphicsPipelineCreateInfo.layout = pipelineLayout;
+    graphicsPipelineCreateInfo.renderPass = renderPass;
+    graphicsPipelineCreateInfo.subpass = 0;
+    graphicsPipelineCreateInfo.basePipelineHandle = nullptr;
+    graphicsPipelineCreateInfo.basePipelineIndex = -1;
+
+    result = vkCreateGraphicsPipelines(device, nullptr, 1, &graphicsPipelineCreateInfo, nullptr, &pipeline);
+    ASSERT_VULKAN(result);
+    frameBuffers.resize(amountOfImagesInSwapchain);
+    for (int i = 0; i < amountOfImagesInSwapchain; i++)
+    {
+        VkFramebufferCreateInfo framebufferCreateInfo;
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.pNext = nullptr;
+        framebufferCreateInfo.flags = 0;
+        framebufferCreateInfo.renderPass = renderPass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = &(imageViews[i]);
+        framebufferCreateInfo.width = surfaceCapabilities.currentExtent.width;
+        framebufferCreateInfo.height = surfaceCapabilities.currentExtent.height;
+        framebufferCreateInfo.layers = 1;
+        result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &(frameBuffers[i]));
+        ASSERT_VULKAN(result);
+    }
 }
 
 void Game::CreateShaderModule(std::vector<char> &code, VkShaderModule *shaderModule)
@@ -487,6 +614,13 @@ void Game::CreateShaderModule(std::vector<char> &code, VkShaderModule *shaderMod
 void Game::shutdownVulkan() const
 {
     vkDeviceWaitIdle(device);
+    for (auto framebuffer : frameBuffers)
+    {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+    vkDestroyPipeline(device, pipeline, nullptr);
+    vkDestroyRenderPass(device, renderPass, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyShaderModule(device, shaderModuleFrag, nullptr);
     vkDestroyShaderModule(device, shaderModuleVert, nullptr);
     for (auto image_view : imageViews)
