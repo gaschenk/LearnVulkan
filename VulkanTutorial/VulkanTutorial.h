@@ -13,6 +13,10 @@
 #include <stdexcept>
 #include <vector>
 #include <nameof.hpp>
+#include <optional>
+#include <set>
+#include <cstdint> // Necessary for UINT32_MAX
+#include <algorithm> // Necessary for std::min/std::max
 
 #ifdef _DEBUG
 #define ASSERT_VULKAN(val)                                                                                             \
