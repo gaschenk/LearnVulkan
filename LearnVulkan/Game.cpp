@@ -63,7 +63,7 @@ int Game::getBestDeviceId(std::vector<VkPhysicalDevice> &devices)
         getQueueFamilyProperties(physicalDevice);
     }
     if (bestDeviceIds.size() == 0)
-        return {0};
+        return -1;
 
     return bestDeviceIds[0];
 }
@@ -582,7 +582,7 @@ void Game::initializeVulkan()
     result = vkCreateGraphicsPipelines(device, nullptr, 1, &graphicsPipelineCreateInfo, nullptr, &pipeline);
     ASSERT_VULKAN(result);
     frameBuffers.resize(amountOfImagesInSwapchain);
-    for (int i = 0; i < amountOfImagesInSwapchain; i++)
+    for (uint32_t i = 0; i < amountOfImagesInSwapchain; i++)
     {
         VkFramebufferCreateInfo framebufferCreateInfo;
         framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -597,6 +597,12 @@ void Game::initializeVulkan()
         result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &(frameBuffers[i]));
         ASSERT_VULKAN(result);
     }
+    VkCommandPoolCreateInfo commandPoolCreateInfo;
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.pNext = nullptr;
+    commandPoolCreateInfo.flags = 0;
+    commandPoolCreateInfo.queueFamilyIndex = 0; // TODO: CIV VK_QUEUE_GRAPHICS_BIT
+
 }
 
 void Game::CreateShaderModule(std::vector<char> &code, VkShaderModule *shaderModule)
