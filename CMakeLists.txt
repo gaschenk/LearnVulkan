@@ -3,7 +3,8 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-project ("LearnVulkan")
+project ("LearnVulkan" VERSION "0.0.1")
 
 # Include sub-projects.
 add_subdirectory ("LearnVulkan")
+add_subdirectory ("VulkanTutorial")
