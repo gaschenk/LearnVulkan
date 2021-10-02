@@ -18,7 +18,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(nameof CONFIG REQUIRED)
 
 # Add source to this project's executable.
-add_executable (${EXECUTABLE_NAME} "VulkanTutorial.cpp")
+add_executable (${EXECUTABLE_NAME} "VulkanTutorial.cpp" "HelloTriangleApplication.cpp" "HelloTriangleApplication.h")
 
 #add include dirs
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${STB_INCLUDE_DIRS})
