@@ -7,10 +7,12 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
+#include "Vertex.h"
 #include <algorithm> // Necessary for std::min/std::max
 #include <cstdint>   // Necessary for UINT32_MAX
 #include <cstdlib>
 #include <fstream>
+#include <glm/glm.hpp>
 #include <iostream>
 #include <nameof.hpp>
 #include <optional>
@@ -18,7 +20,6 @@
 #include <stb.h>
 #include <stdexcept>
 #include <vector>
-
 #ifdef _DEBUG
 #define ASSERT_VULKAN(val)                                                                                             \
     if (val != VK_SUCCESS)                                                                                             \
@@ -30,7 +31,6 @@
 #define ASSERT_VULKAN(val)
 #endif
 
-
 class HelloTriangleApplication
 {
   public:
@@ -39,6 +39,10 @@ class HelloTriangleApplication
     void run();
 
   private:
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer vertexBuffer;
+    const std::vector<Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
     bool framebufferResized = false;
     std::vector<VkFence> inFlightFences;
     std::vector<VkFence> imagesInFlight;
@@ -88,6 +92,10 @@ class HelloTriangleApplication
     std::vector<const char *> getRequiredExtensions();
 
     void initVulkan();
+
+    void createVertexBuffer();
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     void createSyncObjects();
 
