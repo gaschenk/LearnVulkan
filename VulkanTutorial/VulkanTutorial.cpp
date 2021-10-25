@@ -1,5 +1,4 @@
 #include "VulkanTutorial.h"
-#include <SFML/Network.hpp>
 int main()
 {
     HelloTriangleApplication app(800, 600);
