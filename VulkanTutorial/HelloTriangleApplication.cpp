@@ -225,7 +225,7 @@ void HelloTriangleApplication::createVertexBuffer()
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(
-    memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS)
     {
@@ -275,7 +275,6 @@ void HelloTriangleApplication::createSyncObjects()
             vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
             vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
         {
-
             throw std::runtime_error("failed to create synchronization objects for a frame!");
         }
     }
@@ -333,7 +332,6 @@ void HelloTriangleApplication::createCommandBuffers()
         {
             throw std::runtime_error("failed to record command buffer!");
         }
-
     }
 }
 
